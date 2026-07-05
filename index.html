@@ -23,6 +23,8 @@
   .group button{border:0;border-radius:0;border-right:1px solid var(--edge)}
   .group button:last-child{border-right:0}
   .group button.on{background:var(--accent);color:#141200;font-weight:700}
+  button.on{background:var(--accent);color:#141200;font-weight:700;border-color:var(--accent)}
+  button.on:hover{background:#e8b25a}
 
   .seed{display:inline-flex;align-items:center;gap:8px;color:var(--dim);font-size:11px;letter-spacing:1px;
     border:1px solid var(--edge);border-radius:2px;padding:6px 9px;cursor:pointer;user-select:none;background:#101210}
@@ -39,9 +41,33 @@
 
   main{flex:1 1 auto;display:grid;place-items:center;padding:30px;overflow:auto;
     background:radial-gradient(120% 120% at 50% 25%,#131512,#0a0b0a 72%)}
-  #stage{width:min(1000px,100%)}
+  #stage{width:min(1000px,100%);position:relative}
   #stage svg{width:100%;height:auto;display:block;border-radius:3px;
-    box-shadow:0 26px 64px rgba(0,0,0,.6),0 0 0 1px rgba(255,255,255,.02)}
+    box-shadow:0 26px 64px rgba(0,0,0,.6),0 0 0 1px rgba(255,255,255,.02);transition:filter .3s}
+
+  /* --- CRT effect (screen-only; does not affect exports) --- */
+  #stage::before,#stage::after{content:"";position:absolute;inset:0;border-radius:3px;
+    pointer-events:none;opacity:0;transition:opacity .3s;z-index:2}
+  body.crt #stage::before,body.crt #stage::after{opacity:1}
+  /* scanlines + faint aperture-grille tint */
+  body.crt #stage::before{
+    background:
+      repeating-linear-gradient(0deg,rgba(0,0,0,.34) 0,rgba(0,0,0,.34) 1px,transparent 1px,transparent 3px),
+      repeating-linear-gradient(90deg,rgba(255,60,60,.05) 0,rgba(60,255,60,.03) 1px,rgba(60,60,255,.05) 2px,transparent 3px);
+    animation:crtFlicker 2.4s ease-in-out infinite}
+  /* rolling scan band + tube vignette */
+  body.crt #stage::after{
+    background:
+      linear-gradient(180deg,rgba(255,255,255,.07),rgba(255,255,255,0) 42%) no-repeat,
+      radial-gradient(125% 125% at 50% 50%,transparent 55%,rgba(0,0,0,.6) 100%);
+    background-size:100% 45%,100% 100%;
+    background-position:0 -60%,center;
+    animation:crtScan 7s linear infinite}
+  body.crt #stage svg{filter:saturate(1.2) contrast(1.06) brightness(1.04)}
+  @keyframes crtFlicker{0%,100%{opacity:.9}45%{opacity:1}55%{opacity:.94}}
+  @keyframes crtScan{0%{background-position:0 -60%,center}100%{background-position:0 160%,center}}
+  @media (prefers-reduced-motion:reduce){
+    body.crt #stage::before,body.crt #stage::after{animation:none}}
 
   footer{padding:8px 18px;border-top:1px solid var(--edge);color:var(--dim);font-size:10px;
     letter-spacing:1px;display:flex;gap:20px;flex-wrap:wrap}
@@ -62,6 +88,8 @@
 
   <span class="seed" id="seedTag" title="Click to copy seed">SEED <b id="seedVal">—</b></span>
 
+  <button id="crtBtn" title="Toggle CRT effect">CRT<kbd>C</kbd></button>
+
   <span class="spacer"></span>
   <button class="primary" id="lucky">Lucky<kbd>space</kbd></button>
   <button id="pngBtn">PNG<kbd>P</kbd></button>
@@ -74,6 +102,7 @@
   <span>space · new draw</span>
   <span>1 / 2 / 3 · modes</span>
   <span>P / S · export</span>
+  <span>C · CRT</span>
   <span id="meta"></span>
 </footer>
 
@@ -127,6 +156,14 @@ function dl(blob, name){
   a.href = url; a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
+const crtBtn = document.getElementById("crtBtn");
+function setCrt(on){
+  document.body.classList.toggle("crt", on);
+  crtBtn.classList.toggle("on", on);
+  try { localStorage.setItem("microgfx.crt", on ? "1" : "0"); } catch {}
+}
+crtBtn.onclick = () => setCrt(!document.body.classList.contains("crt"));
+
 modeBtns.forEach(b => b.onclick = () => setMode(b.dataset.mode));
 themeSel.onchange = lucky;
 document.getElementById("lucky").onclick = lucky;
@@ -142,7 +179,11 @@ addEventListener("keydown", e => {
   else if (e.key === "3") setMode("poster");
   else if (e.key === "p" || e.key === "P") exportPNG();
   else if (e.key === "s" || e.key === "S") exportSVG();
+  else if (e.key === "c" || e.key === "C") setCrt(!document.body.classList.contains("crt"));
 });
 
+let crtPref = false;
+try { crtPref = localStorage.getItem("microgfx.crt") === "1"; } catch {}
+setCrt(crtPref);
 lucky();
 </script>
