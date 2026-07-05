@@ -1,0 +1,20 @@
+{
+  "name": "microgfx",
+  "version": "1.0.0",
+  "description": "A tiny, dependency-free library for generative \"technical instrument\" SVG art.",
+  "license": "MIT",
+  "main": "microgfx.js",
+  "files": [
+    "microgfx.js",
+    "src"
+  ],
+  "scripts": {
+    "build": "esbuild src/index.ts --bundle --format=iife --global-name=MicroGfx --outfile=microgfx.js --footer:js=\"typeof module!=='undefined'&&(module.exports=MicroGfx);\"",
+    "dev": "npm run build -- --watch",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "esbuild": "^0.24.0",
+    "typescript": "^5.6.0"
+  }
+}

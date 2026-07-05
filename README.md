@@ -90,8 +90,32 @@ Registries: `MicroGfx.elements`, `.templates`, `.themes`, `.marks` (logo glyphs)
 
 ## Files
 
-- **`microgfx.js`** — the library (also `module.exports` for Node, so you can generate SVGs headless).
-- **`index.html`** — the studio UI that consumes it.
+- **`microgfx.js`** — the built library, a single self-contained file (a UMD-ish bundle: `window.MicroGfx` in the browser, `module.exports` in Node so you can generate SVGs headless). This is committed, so consuming it needs no build step.
+- **`index.html`** — the studio UI that consumes it via a plain `<script src>`.
+- **`src/`** — the TypeScript source the bundle is built from.
+
+## Developing
+
+The source lives in `src/` as focused TypeScript modules; esbuild bundles them into `microgfx.js`. Only contributors need this — end users just open `index.html`.
+
+```
+npm install
+npm run build       # bundle src/ -> microgfx.js
+npm run dev         # rebuild on change (watch)
+npm run typecheck   # tsc --noEmit
+```
+
+The layers map to files, each free to grow without touching the others:
+
+| File | Responsibility |
+|------|----------------|
+| `rng.ts` · `text.ts` · `svg.ts` | seeded PRNG · text measurement · SVG primitives + shared draw state |
+| `content.ts` · `marks.ts` | text/number pools · logo & icon glyphs |
+| `elements.ts` · `layout.ts` | leaf `EL.*` components · recursive `stack` / `row` + `draw` |
+| `themes.ts` · `frames.ts` · `compose.ts` | palettes · outer frames · the template grammar |
+| `render.ts` · `index.ts` | filters + `generate` / `standalone` · public API assembly |
+
+Adding a component is usually a one-file change: a new element in `elements.ts`, a glyph in `marks.ts`, a palette in `themes.ts`, or a template in `compose.ts`. (You can also add any of these at runtime — see **Extending it** above.)
 
 ## Notes
 
