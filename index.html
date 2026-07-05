@@ -1,0 +1,148 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MicroGfx Studio</title>
+<style>
+  :root{
+    --bg:#0c0d0c; --panel:#141613; --edge:#26291f;
+    --fg:#e9e7dc; --dim:#7d8175; --accent:#d6a24a;
+    --mono: ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--mono);font-size:13px;
+    display:flex;flex-direction:column;-webkit-font-smoothing:antialiased}
+
+  header{display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:11px 18px;
+    border-bottom:1px solid var(--edge);background:linear-gradient(180deg,#131512,#0e0f0d)}
+  .brand{letter-spacing:3px;font-size:12px;text-transform:uppercase}
+  .brand b{color:var(--accent)}
+  .spacer{flex:1 1 auto}
+
+  .group{display:inline-flex;border:1px solid var(--edge);border-radius:3px;overflow:hidden}
+  .group button{border:0;border-radius:0;border-right:1px solid var(--edge)}
+  .group button:last-child{border-right:0}
+  .group button.on{background:var(--accent);color:#141200;font-weight:700}
+
+  .seed{display:inline-flex;align-items:center;gap:8px;color:var(--dim);font-size:11px;letter-spacing:1px;
+    border:1px solid var(--edge);border-radius:2px;padding:6px 9px;cursor:pointer;user-select:none;background:#101210}
+  .seed b{color:var(--fg)}
+  .seed:hover{border-color:#3a4030}
+
+  select,button{font-family:var(--mono);font-size:11px;letter-spacing:1.2px;text-transform:uppercase;
+    color:var(--fg);background:#181a16;border:1px solid var(--edge);padding:7px 12px;border-radius:2px;cursor:pointer;transition:.12s}
+  button:hover,select:hover{border-color:#4a5238;background:#1e211a}
+  button:active{transform:translateY(1px)}
+  button.primary{color:#141200;background:var(--accent);border-color:var(--accent);font-weight:700}
+  button.primary:hover{background:#e8b25a}
+  kbd{font:inherit;font-size:9px;color:var(--dim);border:1px solid var(--edge);border-radius:2px;padding:1px 4px;margin-left:6px}
+
+  main{flex:1 1 auto;display:grid;place-items:center;padding:30px;overflow:auto;
+    background:radial-gradient(120% 120% at 50% 25%,#131512,#0a0b0a 72%)}
+  #stage{width:min(1000px,100%)}
+  #stage svg{width:100%;height:auto;display:block;border-radius:3px;
+    box-shadow:0 26px 64px rgba(0,0,0,.6),0 0 0 1px rgba(255,255,255,.02)}
+
+  footer{padding:8px 18px;border-top:1px solid var(--edge);color:var(--dim);font-size:10px;
+    letter-spacing:1px;display:flex;gap:20px;flex-wrap:wrap}
+</style>
+
+<header>
+  <span class="brand"><b>◆</b> MicroGfx</span>
+
+  <span class="group" id="modes">
+    <button data-mode="card" class="on">Card</button>
+    <button data-mode="banner">Banner</button>
+    <button data-mode="poster">Poster</button>
+  </span>
+
+  <select id="theme" title="Theme">
+    <option value="auto">Auto</option>
+  </select>
+
+  <span class="seed" id="seedTag" title="Click to copy seed">SEED <b id="seedVal">—</b></span>
+
+  <span class="spacer"></span>
+  <button class="primary" id="lucky">Lucky<kbd>space</kbd></button>
+  <button id="pngBtn">PNG<kbd>P</kbd></button>
+  <button id="svgBtn">SVG<kbd>S</kbd></button>
+</header>
+
+<main><div id="stage"></div></main>
+
+<footer>
+  <span>space · new draw</span>
+  <span>1 / 2 / 3 · modes</span>
+  <span>P / S · export</span>
+  <span id="meta"></span>
+</footer>
+
+<script src="microgfx.js"></script>
+<script>
+"use strict";
+const stage = document.getElementById("stage");
+const seedVal = document.getElementById("seedVal");
+const metaEl = document.getElementById("meta");
+const themeSel = document.getElementById("theme");
+const modeBtns = [...document.querySelectorAll("#modes button")];
+
+// populate theme picker from the library registry
+MicroGfx.themeKeys.forEach(k => {
+  const o = document.createElement("option"); o.value = k; o.textContent = k; themeSel.appendChild(o);
+});
+
+let mode = "card";
+let gen = null;
+
+function draw(seed){
+  gen = MicroGfx.generate({ mode, theme: themeSel.value, seed });
+  stage.innerHTML = `<svg viewBox="0 0 ${gen.w} ${gen.h}" xmlns="http://www.w3.org/2000/svg">${gen.inner}</svg>`;
+  seedVal.textContent = gen.seed.toString(36).toUpperCase().padStart(6,"0");
+  metaEl.textContent = `${mode} · ${gen.theme}`;
+}
+const lucky = () => draw();
+
+function setMode(m){
+  mode = m;
+  modeBtns.forEach(b => b.classList.toggle("on", b.dataset.mode === m));
+  lucky();
+}
+
+function exportSVG(){
+  const blob = new Blob([MicroGfx.standalone(gen)], {type:"image/svg+xml"});
+  dl(blob, `microgfx-${seedVal.textContent}.svg`);
+}
+function exportPNG(){
+  const scale = 2, svg = MicroGfx.standalone(gen), img = new Image();
+  img.onload = () => {
+    const c = document.createElement("canvas");
+    c.width = gen.w * scale; c.height = gen.h * scale;
+    c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+    c.toBlob(b => dl(b, `microgfx-${seedVal.textContent}.png`), "image/png");
+  };
+  img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
+}
+function dl(blob, name){
+  const url = URL.createObjectURL(blob), a = document.createElement("a");
+  a.href = url; a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+modeBtns.forEach(b => b.onclick = () => setMode(b.dataset.mode));
+themeSel.onchange = lucky;
+document.getElementById("lucky").onclick = lucky;
+document.getElementById("pngBtn").onclick = exportPNG;
+document.getElementById("svgBtn").onclick = exportSVG;
+document.getElementById("seedTag").onclick = () => navigator.clipboard?.writeText(seedVal.textContent);
+
+addEventListener("keydown", e => {
+  if (e.target.tagName === "SELECT" || e.target.tagName === "INPUT") return;
+  if (e.code === "Space"){ e.preventDefault(); lucky(); }
+  else if (e.key === "1") setMode("card");
+  else if (e.key === "2") setMode("banner");
+  else if (e.key === "3") setMode("poster");
+  else if (e.key === "p" || e.key === "P") exportPNG();
+  else if (e.key === "s" || e.key === "S") exportSVG();
+});
+
+lucky();
+</script>
